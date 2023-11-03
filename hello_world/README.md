@@ -1,6 +1,10 @@
 # Hello Fast API
 
 ```sh
+pip install 'fastapi[all]'
+```
+
+```sh
 uvicorn main:app --reload
 ```
 
