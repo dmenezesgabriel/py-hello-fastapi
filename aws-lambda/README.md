@@ -223,6 +223,9 @@ ENV=prod # dev, stage, prod
 AWS_LAMBDA_FUNC_NAME="$IMAGE-$ENV"
 AWS_LAMBDA_ROLE_NAME="$IMAGE-role"
 TAG=$(aws ecr describe-images --repository-name $IMAGE --query 'sort_by(imageDetails, &imagePushedAt)[*].imageTags' --output json | grep -oP '"\K[^"]+' | tail -1)
+
+API_GATEWAY_NAME=$IMAGE
+API_GATEWAY_ID=$(aws apigateway get-rest-apis --query "items[?name=='$API_GATEWAY_NAME'].id" --output text)
 ```
 
 - **Create a Lambda Function**:
@@ -233,6 +236,14 @@ aws lambda create-function \
     --package-type Image \
     --code ImageUri=$AWS_ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com/$IMAGE:$TAG \
     --role $(aws iam get-role --role-name $AWS_LAMBDA_ROLE_NAME --query 'Role.Arn' --output text)
+```
+
+- **Grant permissions to API Gateway invoke the lambda**:
+
+```sh
+LAMBDA_ARN=$(aws lambda get-function --function-name $AWS_LAMBDA_FUNC_NAME --query 'Configuration.FunctionArn' --output text)
+
+aws lambda add-permission --function-name $LAMBDA_ARN --source-arn "arn:aws:execute-api:$AWS_REGION:$AWS_ACCOUNT:$API_GATEWAY_ID/*/*/{proxy+}" --principal apigateway.amazonaws.com --statement-id apigateway-access --action lambda:InvokeFunction
 ```
 
 - **Add environment variable to Lambda runtime**:
